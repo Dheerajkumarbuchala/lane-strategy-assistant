@@ -5,6 +5,12 @@ from app.core.config import GOOGLE_MAPS_API_KEY
 ROUTES_URL = "https://routes.googleapis.com/directions/v2:computeRoutes"
 
 async def compute_route(origin: dict, destination: dict, travel_mode: str = "DRIVE") -> Dict[str, Any]:
+    """
+    Call the Google Routes API v2 and return the raw JSON response.
+
+    Uses TRAFFIC_AWARE_OPTIMAL routing and a minimal field mask
+    (duration, travelAdvisory, legs.steps) to keep costs and payload small.
+    """
     headers = {
         "Content-Type": "application/json",
         "X-Goog-Api-Key": GOOGLE_MAPS_API_KEY,
@@ -28,9 +34,9 @@ async def compute_route(origin: dict, destination: dict, travel_mode: str = "DRI
 
 def to_waypoint(value):
     """
-    Accepts:
-      - {"lat":..., "lng":...} dict
-      - "address string"
+    Convert a user-supplied origin/destination into the Routes API waypoint format.
+
+    Accepts an address string or a {"lat": float, "lng": float} dict.
     """
     if isinstance(value, dict) and "lat" in value and "lng" in value:
         return {"location": {"latLng": {"latitude": value["lat"], "longitude": value["lng"]}}}

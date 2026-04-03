@@ -10,7 +10,16 @@ from app.services.lane_strategy import (
 
 app = FastAPI(title="Lane Strategy Assistant", version="0.1.0")
 
-@app.post("/route-advice", response_model=RouteAdviceResponse)
+@app.post(
+    "/route-advice",
+    response_model=RouteAdviceResponse,
+    summary="Get lane strategy advice for a route",
+    description=(
+        "Computes a route via the Google Routes API and returns per-step lane positioning advice. "
+        "Each step includes `lane_advice` for its own maneuver and `lookahead_advice` — a proactive "
+        "warning to start moving into the correct lane for an upcoming turn, factoring in traffic conditions."
+    ),
+)
 async def route_advice(req: RouteAdviceRequest):
     origin = to_waypoint(req.origin if isinstance(req.origin, str) else req.origin.model_dump())
     dest = to_waypoint(req.destination if isinstance(req.destination, str) else req.destination.model_dump())
