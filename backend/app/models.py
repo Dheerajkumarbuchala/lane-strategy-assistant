@@ -16,6 +16,7 @@ class ManeuverAdvice(BaseModel):
     distance_meters: int
     lane_advice: str
     urgency: str
+    lookahead_advice: Optional[str] = None
 
 class RouteAdviceResponse(BaseModel):
     eta_seconds: int

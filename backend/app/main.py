@@ -1,7 +1,12 @@
 from fastapi import FastAPI
 from app.models import RouteAdviceRequest, RouteAdviceResponse, ManeuverAdvice
 from app.services.google_routes import compute_route, to_waypoint
-from app.services.lane_strategy import lane_advice_from_maneuver, urgency, format_instruction
+from app.services.lane_strategy import (
+    lane_advice_from_maneuver,
+    urgency,
+    format_instruction,
+    lookahead_advice,
+)
 
 app = FastAPI(title="Lane Strategy Assistant", version="0.1.0")
 
@@ -18,43 +23,41 @@ async def route_advice(req: RouteAdviceRequest):
 
     route = routes[0]
     base_eta = _parse_duration_seconds(route.get("duration"))
-    # traffic advisory may include "speedReadingIntervals" etc depending on mask; keep simple
-    traffic_eta = None
 
-    # Steps
+    steps = route.get("legs", [{}])[0].get("steps", [])
+
     maneuvers = []
-    legs = route.get("legs", [])
-    if legs:
-        steps = legs[0].get("steps", [])
-        # pick first few maneuvers
-        for s in steps[:3]:
-            instruction = format_instruction(s)
-            dist_m = int(s.get("distanceMeters", 0) or 0)
+    for i, s in enumerate(steps):
+        instruction = format_instruction(s)
+        dist_m = int(s.get("distanceMeters", 0) or 0)
 
-            # crude traffic signal: if routingPreference is traffic aware, assume "heavy" when close to maneuver
-            traffic_heavy = dist_m <= 1600  # v0 placeholder; we’ll replace with better signal later
-            u = urgency(dist_m, traffic_heavy)
+        # crude traffic signal: placeholder until real traffic data is wired in
+        traffic_heavy = dist_m <= 1600
 
-            advice = lane_advice_from_maneuver(instruction)
-            if u == "HIGH":
-                advice = advice.replace("early", "NOW")
+        u = urgency(dist_m, traffic_heavy)
 
-            maneuvers.append(ManeuverAdvice(
-                instruction=instruction,
-                distance_meters=dist_m,
-                lane_advice=advice,
-                urgency=u
-            ))
+        advice = lane_advice_from_maneuver(instruction)
+        if u == "HIGH":
+            advice = advice.replace("early", "NOW")
+
+        ahead = lookahead_advice(i, steps, traffic_heavy)
+
+        maneuvers.append(ManeuverAdvice(
+            instruction=instruction,
+            distance_meters=dist_m,
+            lane_advice=advice,
+            urgency=u,
+            lookahead_advice=ahead,
+        ))
 
     return RouteAdviceResponse(
         eta_seconds=base_eta,
-        eta_with_traffic_seconds=traffic_eta,
+        eta_with_traffic_seconds=None,
         maneuvers=maneuvers,
         raw=data
     )
 
 def _parse_duration_seconds(d: str | None) -> int:
-    # Routes API duration often like "123s"
     if not d:
         return 0
     if isinstance(d, str) and d.endswith("s"):
