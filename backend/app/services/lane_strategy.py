@@ -7,6 +7,7 @@ _CRITICAL           = 400    # must be in correct lane by this point
 
 
 def lane_advice_from_maneuver(instruction: str) -> str:
+    """Return a short lane positioning directive for a single maneuver instruction."""
     ins = instruction.lower()
     if "left" in ins:
         return "Favor LEFT lanes early"
@@ -30,6 +31,12 @@ def _maneuver_direction(instruction: str) -> Optional[str]:
 
 
 def urgency(distance_meters: int, traffic_heavy: bool) -> str:
+    """
+    Classify how urgently the driver needs to act.
+
+    Returns HIGH (≤400m), MEDIUM (within warning threshold), or LOW.
+    Warning thresholds: 2000m when traffic is heavy, 1000m otherwise.
+    """
     threshold = _WARN_HEAVY_TRAFFIC if traffic_heavy else _WARN_NORMAL
     if distance_meters <= _CRITICAL:
         return "HIGH"
@@ -104,6 +111,7 @@ def lookahead_advice(
 
 
 def format_instruction(step: dict) -> str:
+    """Extract a human-readable instruction string from a Routes API step."""
     ni = step.get("navigationInstruction", {})
     if "instructions" in ni:
         return ni["instructions"]
